@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Karyawan Northwind (CRUD)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background-color: white;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #009879;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f3f3f3;
+        }
+        tr:hover {
+            background-color: #e8f5e9;
+        }
+        .action-buttons button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .btn-edit { background-color: #ffc107; color: #333; }
+        .btn-delete { background-color: #dc3545; color: white; }
+        .btn-add {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        /* Formulir Modal/Dialog */
+        .form-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: none; /* Sembunyikan secara default */
+        }
+        .form-container.show {
+            display: block;
+        }
+        .form-container label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .form-container input[type="text"],
+        .form-container input[type="email"] {
+            width: 98%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-actions {
+            margin-top: 15px;
+        }
+        .form-actions button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Data Karyawan Northwind (CRUD)</h1>
+        
+        <button class="btn-add" onclick="showForm('create')">➕ Tambah Data Karyawan</button>
+
+        <div id="employee-form-container" class="form-container">
+            <h2><span id="form-title">Tambah</span> Karyawan</h2>
+            <form id="employee-form">
+                <input type="hidden" id="employee-id" name="id">
+
+                <label for="first_name">Nama Depan:</label>
+                <input type="text" id="first_name" name="first_name" required>
+
+                <label for="last_name">Nama Belakang:</label>
+                <input type="text" id="last_name" name="last_name" required>
+
+                <label for="job_title">Jabatan:</label>
+                <input type="text" id="job_title" name="job_title" required>
+
+                <label for="email_address">Email:</label>
+                <input type="email" id="email_address" name="email_address">
+
+                <label for="business_phone">Telepon Bisnis:</label>
+                <input type="text" id="business_phone" name="business_phone">
+
+                <label for="city">Kota:</label>
+                <input type="text" id="city" name="city">
+
+                <div class="form-actions">
+                    <button type="submit" id="submit-button">Simpan</button>
+                    <button type="button" onclick="hideForm()">Batal</button>
+                </div>
+            </form>
+        </div>
+        
+        <table id="data-karyawan">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nama Lengkap</th>
+                    <th>Jabatan</th>
+                    <th>Email</th>
+                    <th>Telepon Bisnis</th>
+                    <th>Kota</th>
+                    <th>Aksi</th> </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="7">Memuat data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // *** GANTI URL INI DENGAN URL API ASLI ANDA ***
+        const API_BASE_URL = 'http://localhost/webservice/api.php/records/employees'; 
+        // URL yang Anda berikan: localhost/webservice/api.php/records/employees
+
+        const tbody = document.querySelector('#data-karyawan tbody');
+        const formContainer = document.getElementById('employee-form-container');
+        const employeeForm = document.getElementById('employee-form');
+        let currentOperation = 'create'; // Menyimpan state: 'create' atau 'update'
+
+        // --- Bagian READ (R) ---
+        async function fetchDataAndRender() {
+            tbody.innerHTML = '<tr><td colspan="7">Memuat data...</td></tr>';
+            try {
+                const response = await fetch(API_BASE_URL);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const data = await response.json();
+                
+                if (data.records && Array.isArray(data.records)) {
+                    const employees = data.records;
+                    tbody.innerHTML = ''; // Bersihkan
+
+                    if (employees.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7">Tidak ada data karyawan yang ditemukan.</td></tr>';
+                        return;
+                    }
+
+                    employees.forEach(employee => {
+                        const row = tbody.insertRow();
+                        
+                        // Kolom Data
+                        row.insertCell().textContent = employee.id;
+                        row.insertCell().textContent = `${employee.first_name || ''} ${employee.last_name || ''}`;
+                        row.insertCell().textContent = employee.job_title || '';
+                        row.insertCell().textContent = employee.email_address || '';
+                        row.insertCell().textContent = employee.business_phone || '';
+                        row.insertCell().textContent = employee.city || '';
+                        
+                        // Kolom Aksi
+                        const actionsCell = row.insertCell();
+                        actionsCell.className = 'action-buttons';
+                        
+                        const editBtn = document.createElement('button');
+                        editBtn.textContent = 'Edit';
+                        editBtn.className = 'btn-edit';
+                        editBtn.onclick = () => fillFormForUpdate(employee);
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.textContent = 'Hapus';
+                        deleteBtn.className = 'btn-delete';
+                        deleteBtn.onclick = () => deleteEmployee(employee.id);
+
+                        actionsCell.appendChild(editBtn);
+                        actionsCell.appendChild(deleteBtn);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7">Error: Struktur data API tidak valid.</td></tr>';
+                }
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+                tbody.innerHTML = `<tr><td colspan="7">Gagal memuat data. Periksa API dan CORS. (${error.message})</td></tr>`;
+            }
+        }
+
+        // --- Bagian CREATE (C) & UPDATE (U) ---
+
+        // Fungsi untuk menampilkan formulir (CREATE atau UPDATE)
+        function showForm(operation, data = {}) {
+            currentOperation = operation;
+            document.getElementById('form-title').textContent = operation === 'create' ? 'Tambah' : 'Edit';
+            document.getElementById('submit-button').textContent = operation === 'create' ? 'Simpan Data Baru' : 'Perbarui Data';
+
+            // Reset formulir
+            employeeForm.reset(); 
+
+            // Isi formulir jika operasi adalah UPDATE
+            if (operation === 'update' && data) {
+                document.getElementById('employee-id').value = data.id;
+                document.getElementById('first_name').value = data.first_name || '';
+                document.getElementById('last_name').value = data.last_name || '';
+                document.getElementById('job_title').value = data.job_title || '';
+                document.getElementById('email_address').value = data.email_address || '';
+                document.getElementById('business_phone').value = data.business_phone || '';
+                document.getElementById('city').value = data.city || '';
+            }
+            
+            formContainer.classList.add('show');
+            window.scrollTo(0, 0); // Gulir ke atas untuk melihat formulir
+        }
+
+        function hideForm() {
+            formContainer.classList.remove('show');
+            employeeForm.reset();
+        }
+
+        function fillFormForUpdate(employee) {
+            showForm('update', employee);
+        }
+
+        // Handler untuk submit formulir
+        employeeForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const employeeId = document.getElementById('employee-id').value;
+            const url = currentOperation === 'create' ? API_BASE_URL : `${API_BASE_URL}/${employeeId}`;
+            const method = currentOperation === 'create' ? 'POST' : 'PUT';
+
+            // Ambil data dari formulir
+            const formData = {
+                first_name: document.getElementById('first_name').value,
+                last_name: document.getElementById('last_name').value,
+                job_title: document.getElementById('job_title').value,
+                email_address: document.getElementById('email_address').value,
+                business_phone: document.getElementById('business_phone').value,
+                city: document.getElementById('city').value,
+                // Tambahkan field lain yang relevan (company, address, dll) jika perlu
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'No JSON response' }));
+                    throw new Error(`Gagal ${currentOperation === 'create' ? 'menambah' : 'memperbarui'} data: ${response.status} - ${JSON.stringify(errorData)}`);
+                }
+
+                alert(`Data Karyawan berhasil di${currentOperation === 'create' ? 'simpan' : 'perbarui'}!`);
+                hideForm();
+                fetchDataAndRender(); // Muat ulang data tabel
+            } catch (error) {
+                console.error("Operasi Gagal:", error);
+                alert(`Error: ${error.message}. Pastikan CORS dan API Key (jika ada) sudah diatur.`);
+            }
+        });
+
+        // --- Bagian DELETE (D) ---
+        async function deleteEmployee(id) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus data karyawan dengan ID: ${id}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/${id}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'No JSON response' }));
+                    throw new Error(`Gagal menghapus data: ${response.status} - ${JSON.stringify(errorData)}`);
+                }
+
+                alert(`Data Karyawan ID ${id} berhasil dihapus.`);
+                fetchDataAndRender(); // Muat ulang data tabel
+            } catch (error) {
+                console.error("Operasi Hapus Gagal:", error);
+                alert(`Error: ${error.message}. Pastikan CORS dan API Key sudah diatur.`);
+            }
+        }
+
+        // Panggil fungsi saat halaman dimuat
+        fetchDataAndRender();
+    </script>
+
+</body>
+</html>
